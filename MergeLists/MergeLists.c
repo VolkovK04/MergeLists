@@ -1,14 +1,10 @@
-#include <stdlib.h>
-#include <stdio.h>
-
-
-struct ListNode {
+typedef struct {
     int val;
-    struct ListNode* next;
-};
+    int listIndex;
+} Pair;
 
 typedef struct {
-    int* data;
+    Pair* data;
     int len;
     int cap;
 } Heap;
@@ -23,7 +19,7 @@ void nullCheck(void* ptr) {
 Heap* heapCreate() {
     int cap = 16;
     int len = 0;
-    int* ptr = (int*)malloc(cap * sizeof(int));
+    Pair* ptr = (Pair*)malloc(cap * sizeof(Pair));
     nullCheck(ptr);
     Heap* res = (Heap*)malloc(sizeof(Heap));
     *res = (Heap){
@@ -34,17 +30,17 @@ Heap* heapCreate() {
     return res;
 }
 
-void swap(int* a, int* b) {
-    int c = *a;
+void swap(Pair* a, Pair* b) {
+    Pair c = *a;
     *a = *b;
     *b = c;
 }
 
-void heapPush(Heap* obj, int val) {
+void heapPush(Heap* obj, Pair val) {
     obj->len++;
     if (obj->len > obj->cap) {
         obj->cap *= 2;
-        obj->data = (int*)realloc(obj->data, obj->cap * sizeof(int));
+        obj->data = (Pair*)realloc(obj->data, obj->cap * sizeof(Pair));
         nullCheck(obj->data);
     }
     int index = obj->len - 1;
@@ -54,7 +50,7 @@ void heapPush(Heap* obj, int val) {
         if (parent < 0) {
             return;
         }
-        if (obj->data[parent] > obj->data[index]) {
+        if (obj->data[parent].val > obj->data[index].val) {
             swap(obj->data + parent, obj->data + index);
         }
         else {
@@ -64,8 +60,8 @@ void heapPush(Heap* obj, int val) {
     }
 }
 
-int heapPop(Heap* obj) {
-    int result = obj->data[0];
+Pair heapPop(Heap* obj) {
+    Pair result = obj->data[0];
     obj->len--;
     int index = 0;
     obj->data[index] = obj->data[obj->len];
@@ -75,11 +71,11 @@ int heapPop(Heap* obj) {
             return result;
         }
         if (minIndex + 1 < obj->len) {
-            if (obj->data[minIndex] > obj->data[minIndex + 1]) {
+            if (obj->data[minIndex].val > obj->data[minIndex + 1].val) {
                 minIndex++;
             }
         }
-        if (obj->data[index] > obj->data[minIndex]) {
+        if (obj->data[index].val > obj->data[minIndex].val) {
             swap(obj->data + index, obj->data + minIndex);
         }
         else {
@@ -95,9 +91,9 @@ void heapFree(Heap* obj) {
     free(obj);
 }
 
-void printArr(int* arr, int len) {
+void printArr(Pair* arr, int len) {
     for (int i = 0; i < len; i++) {
-        printf("%d, ", arr[i]);
+        printf("<%d %d>, ", arr[i].val, arr[i].listIndex);
     }
     printf("\n");
 }
@@ -106,76 +102,46 @@ struct ListNode* mergeKLists(struct ListNode** lists, int listsSize) {
     Heap* heap = heapCreate();
     for (int i = 0; i < listsSize; i++) {
         struct ListNode* list = lists[i];
-        while (list != NULL) {
-            heapPush(heap, list->val);
-            list = list->next;
-        }
+        if (list != NULL)
+        heapPush(heap, (Pair){
+            .val = list->val,
+            .listIndex = i
+            });
     }
     if (heap->len == 0) {
         return NULL;
     }
-    //printArr(heap->data, heap->len);
     struct ListNode* node = (struct ListNode*)malloc(sizeof(struct ListNode));
     nullCheck(node);
     struct ListNode* result = node;
-    node->val = heapPop(heap);
+    Pair pair = heapPop(heap);
+    node->val = pair.val;
+    int ind = pair.listIndex;
+    lists[ind] = lists[ind]->next;
+    if (lists[ind] != NULL) {
+        struct ListNode* list = lists[ind];
+        heapPush(heap, (Pair){
+            .val = list->val,
+            .listIndex = ind
+        });
+    }
     while (heap->len != 0) {
         node->next = (struct ListNode*)malloc(sizeof(struct ListNode));
         node = node->next;
         nullCheck(node);
-        node->val = heapPop(heap);
+        pair = heapPop(heap);
+        node->val = pair.val;
+        ind = pair.listIndex;
+        lists[ind] = lists[ind]->next;
+        if (lists[ind] != NULL) {
+            struct ListNode* list = lists[ind];
+            heapPush(heap, (Pair){
+                .val = list->val,
+                .listIndex = ind
+            });
+        }
     }
     node->next = NULL;
     heapFree(heap);
     return result;
-}
-
-void scanList(struct ListNode* list) {
-    int x;
-    scanf_s("%d", &x);
-    if (x == 0) {
-        return;
-    }
-    list->val = x;
-    while (1) {
-        scanf_s("%d", &x);
-        if (x == 0) {
-            break;
-        }
-        list->next = (struct ListNode*)malloc(sizeof(struct ListNode));
-        list = list->next;
-        nullCheck(list);
-        list->val = x;
-    }
-    list->next = NULL;
-}
-
-void printList(struct ListNode* list) {
-    while (list != NULL) {
-        printf("%d\n", list->val);
-        list = list->next;
-    }
-}
-
-int main() {
-    struct ListNode* list1 = (struct ListNode*)malloc(sizeof(struct ListNode));
-    printf("input list1:\n");
-    scanList(list1);
-    struct ListNode* list2 = (struct ListNode*)malloc(sizeof(struct ListNode));
-    printf("input list2:\n");
-    scanList(list2);
-    struct ListNode* list3 = (struct ListNode*)malloc(sizeof(struct ListNode));
-    printf("input list3:\n");
-    scanList(list3);
-    struct ListNode** arr = (struct ListNode**)malloc(3 * sizeof(struct ListNode*));
-    nullCheck(arr);
-    arr[0] = list1;
-    arr[1] = list2;
-    arr[2] = list3;
-
-    struct ListNode* output = mergeKLists(arr, 3);
-    printf("output list:\n");
-    printList(output);
-
-    return 0;
 }
